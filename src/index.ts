@@ -1,60 +1,55 @@
+#!/usr/bin/env node
 import * as chalk from "chalk";
 import { program } from "commander";
-import * as fs from "fs";
-import * as path from "path";
+import { generateComponent, saveFile } from "./generate-comp";
+// @ts-ignore
+import * as gitPullOrClone from "git-pull-or-clone";
 
 program
   .version("0.0.1")
   .description("Generate Component For Javascript Libraries");
 
-program
-  .argument("<folderName>", "Folder Name For Generating Component")
-  .option("-rn, --react-native", "Generate React Native Component")
-  .option("-rj, --react-js", "Generate React Js Component")
-  .action(async (folderName, params) => {
-    let IndexFile = "";
-    let StylesFile = "";
-    if (params.reactNative) {
-      IndexFile = fs.readFileSync("./src/react-native/index.js").toString();
-      StylesFile = fs.readFileSync("./src/react-native/styles.js").toString();
-    }
+const options = [
+  { name: "-rn, --react-native", desc: "Generate React Native Component" },
+  { name: "-rj, --react-js", desc: "Generate React Js Component" },
+  {
+    name: "--firebase-helper-file-web",
+    desc: "Generate Firebase Helper File For Web",
+  },
+  {
+    name: "--firebase-helper-file-native",
+    desc: "Generate Firebase Helper File For React Native",
+  },
+];
 
-    if (params.reactNative) {
-      IndexFile = fs
-        .readFileSync("./src/react-native/index.js")
-        .toString()
-        .replaceAll("TESTNAME", folderName);
-      StylesFile = fs.readFileSync("./src/react-native/styles.js").toString();
-    }
+const GenerateComp = program.argument(
+  "<folderName>",
+  "Folder Name For Generating Component"
+);
 
-    if (params.reactJs) {
-      IndexFile = fs
-        .readFileSync("./src/react-js/index.js")
-        .toString()
-        .replaceAll("TESTNAME", folderName);
-    }
+options.map((item) => {
+  GenerateComp.option(item.name, item.desc);
+});
 
-    if (IndexFile || StylesFile) {
-      try {
-        fs.mkdirSync(path.join(process.cwd(), folderName));
-      } catch (err) {
-        console.log(chalk.red("Folder Already Exists"));
-        return;
+GenerateComp.action(async (folderName, params) => {
+  if (params.reactNative || params.reactJs) {
+    generateComponent(folderName, params);
+  }
+
+  if (params.firebaseHelperFileWeb) {
+    gitPullOrClone(
+      "https://github.com/itxhamza/firebase-helper-file.git",
+      `./${folderName}`,
+      (err: any) => {
+        console.log(chalk.green("Helper Files Generated Scucessful!"));
       }
-      const indexFilePath = path.join(process.cwd(), folderName, "index.js");
-      const styleFilePath = path.join(process.cwd(), folderName, "styles.js");
-      if (IndexFile) {
-        saveFile(indexFilePath, IndexFile);
-      }
-      if (StylesFile) {
-        saveFile(styleFilePath, StylesFile);
-      }
-    }
-  });
+    );
+  }
 
-const saveFile = (path: string, data: string) => {
-  fs.writeFileSync(path, data);
-};
+  if (Object.keys(params).length == 0) {
+    console.log(chalk.red("Invalid Option"));
+  }
+});
 
 //   @ts-ignore
 program.parse(process.argv);
